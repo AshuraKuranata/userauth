@@ -1,10 +1,18 @@
 package com.userauth.controllers;
 import com.userauth.models.User; // import User Model from Java
+
+import java.util.HashMap;
 import java.util.List; // Allows use of List command from Java; gives capability to make List adjustments (esp related to data from database)
+import java.util.Map;
 
 import com.userauth.daos.UserDao; // pulls the Data Access Object (DAO)
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+// Bcrypt Authentication - pulling from Bcrypt.java
+import com.userauth.security.Bcrypt;
 
 // Dependencies to pull that allow RESTful API connection to a front end
 // Requries Spring Boot Web Dependency added in pom.xml
@@ -37,15 +45,51 @@ public class UserAuthController {
         return userDao.getUser(username);
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<Map<String, String>> login(@RequestBody User user) {
+        List<User> users = userDao.getUser(user.getUsername());
+        Map<String, String> response = new HashMap<>();
+        
+        if (users.isEmpty()) {
+            response.put("message", "User Not Found.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
+        String storedHash = users.get(0).getPassword();
+        System.out.println("Stored hash from DB: " + storedHash);
+
+        if (storedHash == null || storedHash.isBlank()) {
+            response.put("message", "Stored password is invalid.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+        if (Bcrypt.checkpw(user.getPassword(), storedHash)) {
+            response.put("message", "Login Successful!");
+            return ResponseEntity.ok(response);
+        } else {
+            response.put("message", "Invalid Credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+    }
+
+    // Adding PW hashing 
     @PostMapping("/user/create")
     public String create(@RequestBody User user) {
-        userDao.createUser(user.getUsername(), user.getPassword());
+        String hashedPassword = Bcrypt.hashpw(user.getPassword(), Bcrypt.gensalt());
+        userDao.createUser(user.getUsername(), hashedPassword);
         return "Created new record: Username: " + user.getUsername() + ".";
     }
 
+    // Old Creation Route
+    // @PostMapping("/user/create")
+    // public String create(@RequestBody User user) {
+    //     userDao.createUser(user.getUsername(), user.getPassword());
+    //     return "Created new record: Username: " + user.getUsername() + ".";
+    // }
+
     @PutMapping("/user/{username}/update")
     public String updateUser(@PathVariable String username, @RequestBody User user) {
-        userDao.updateUser(username, user.getPassword());
+        String hashedPassword = Bcrypt.hashpw(user.getPassword(), Bcrypt.gensalt());
+        userDao.updateUser(username, hashedPassword);
         return "Updated user record: " + username;
     }
 

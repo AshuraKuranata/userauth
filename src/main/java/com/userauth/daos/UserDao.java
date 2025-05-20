@@ -15,7 +15,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 
 public class UserDao {
     private static final String GET_ALL_USERS = "SELECT * FROM users";
-    private static final String GET_USER = "SELECT username FROM users WHERE username = :username";
+    private static final String GET_USER = "SELECT username, password FROM users WHERE username = :username";
     private static final String INSERT_USER = "INSERT INTO users (username, password) SELECT :username, :password WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = :checkUsername )";
     private static final String UPDATE_USER = "UPDATE users SET username = :username, password = :password WHERE username = :username";
     private static final String DELETE_USER = "DELETE FROM users WHERE username = :username";
@@ -38,6 +38,7 @@ public class UserDao {
         return jdbcTemplate.query(GET_USER, params, (rs, rowNum) -> {
             User user = new User();
             user.setUsername(rs.getString("username"));
+            user.setPassword(rs.getString("password"));
             return user;
         });
     }
