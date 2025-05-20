@@ -6,6 +6,9 @@ import com.userauth.daos.UserDao; // pulls the Data Access Object (DAO)
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+// Bcrypt Authentication - pulling from Bcrypt.java
+import com.userauth.security.Bcrypt;
+
 // Dependencies to pull that allow RESTful API connection to a front end
 // Requries Spring Boot Web Dependency added in pom.xml
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,15 +40,40 @@ public class UserAuthController {
         return userDao.getUser(username);
     }
 
+    @PostMapping("/login")
+    public String login(@RequestBody User user) {
+        List<User> users = userDao.getUser(user.getUsername());
+        if (users.isEmpty()) {
+            return "User not found.";
+        }
+
+        String storedHash = users.get(0).getPassword();
+        if (Bcrypt.checkpw(user.getPassword(), storedHash)) {
+            return "Login Successful!";
+        } else {
+            return "Invalid Credentials";
+        }
+    }
+
+    // Adding PW hashing 
     @PostMapping("/user/create")
     public String create(@RequestBody User user) {
-        userDao.createUser(user.getUsername(), user.getPassword());
+        String hashedPassword = Bcrypt.hashpw(user.getPassword(), Bcrypt.gensalt());
+        userDao.createUser(user.getUsername(), hashedPassword);
         return "Created new record: Username: " + user.getUsername() + ".";
     }
 
+    // Old Creation Route
+    // @PostMapping("/user/create")
+    // public String create(@RequestBody User user) {
+    //     userDao.createUser(user.getUsername(), user.getPassword());
+    //     return "Created new record: Username: " + user.getUsername() + ".";
+    // }
+
     @PutMapping("/user/{username}/update")
     public String updateUser(@PathVariable String username, @RequestBody User user) {
-        userDao.updateUser(username, user.getPassword());
+        String hashedPassword = Bcrypt.hashpw(user.getPassword(), Bcrypt.gensalt());
+        userDao.updateUser(username, hashedPassword);
         return "Updated user record: " + username;
     }
 
